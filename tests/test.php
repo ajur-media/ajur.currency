@@ -7,7 +7,7 @@ require_once '../vendor/autoload.php';
 try {
     Currency::selectCurrencySet([]);
 
-    Currency::storeFile('data.json');
+    Currency::storeFile('test.json');
 } catch (Exception $e) {
     var_dump($e->getMessage());
 }

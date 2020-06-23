@@ -16,6 +16,16 @@ interface CurrencyInterface
     ];
 
     /**
+     * Инициализирует класс.
+     * Необязательное действие. Основные значения заданы по умолчанию.
+     *
+     * @param array $options
+     * @param LoggerInterface|null $logger
+     * @return mixed
+     */
+    public static function init($options = [], LoggerInterface $logger = null);
+
+    /**
      * Фильтрует набор данных из ЦБР на предмет валют по набору кодов
      *
      * @param array $codes

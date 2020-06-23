@@ -11,29 +11,51 @@ use Psr\Log\LoggerInterface;
 class Currency implements CurrencyInterface
 {
     /**
-     * Максимальная длина строки с записью валюты
+     * @var array [
+     * - locale - локаль, по умолчанию ru_RU
+     * - max_currency_string_length - максимальная длина строки с записью валюты (5)
+     * ]
      */
-    private static $MAX_CURRENCY_STRING_LENGTH = 5;
+    private static $options = [
+        'out_format'                    =>  "%01.2f",
+    ];
 
     /**
-     * @var array
+     * @var array Список валют, общий вид
      */
     private static $cbr_prices = [];
 
     /**
-     * @var array
+     * @var array Список валют, компактный вид
      */
     private static $cbr_prices_compact = [];
 
     /**
-     * @var array
+     * @var array Отладочный набор данных
      */
     private static $cbr_prices_full;
 
-    public static function init($locale = 'ru_RU', $max_length = 5)
+    /**
+     * @var array Полный набор данных
+     */
+    public static $cbr_response_raw_data;
+
+    /**
+     * @param array $options
+     * @param LoggerInterface|null $logger
+     */
+    public static function init($options = [], LoggerInterface $logger = null)
     {
-        setlocale(LC_MONETARY, $locale);
-        self::$MAX_CURRENCY_STRING_LENGTH = $max_length;
+        self::$options['locale']
+            = array_key_exists('locale', $options)
+            ? $options['locale']
+            : 'ru_RU';
+        setlocale(LC_MONETARY, self::$options['locale']);
+
+        self::$options['out_format']
+            = array_key_exists('out_format', $options)
+            ? $options['out_format']
+            : "%01.2f";
     }
 
     /**
@@ -56,7 +78,8 @@ class Currency implements CurrencyInterface
 
         $cbr_prices_full = array_filter($daily['Valute'], function ($price) use (&$cbr_prices, &$cbr_prices_compact, $codes) {
             if (empty($codes) || in_array($price['CharCode'], $codes)) {
-                $cbr_prices[] = [
+                $_code = $price['CharCode'];
+                $cbr_prices[ $_code ] = [
                     'Code'      =>  $price['CharCode'],
                     'Name'      =>  $price['Name'],
                     'Value'     =>  self::formatCurrencyValue($price['Value']),
@@ -64,7 +87,7 @@ class Currency implements CurrencyInterface
                     'PureValue' =>  $price['Value']
                 ];
 
-                $cbr_prices_compact[ strtolower($price['CharCode']) ] = self::formatCurrencyValue($price['Value']);
+                $cbr_prices_compact[ $_code ] = self::formatCurrencyValue($price['Value']);
                 return true;
             }
             return false;
@@ -107,8 +130,8 @@ class Currency implements CurrencyInterface
         $asset = [
             'update_ts'     =>  time(),
             'update_time'   =>  (new DateTime())->format('Y-m-d H-i-s'),
-            'cbr'   =>  self::getPricesCompact(),
-            'data'  =>  self::getPrices()
+            'summary'       =>  self::getPricesCompact(),
+            'data'          =>  self::getPrices()
         ];
         return file_put_contents($filename, json_encode($asset, JSON_PRETTY_PRINT | JSON_PRESERVE_ZERO_FRACTION | JSON_UNESCAPED_UNICODE), LOCK_EX);
     }
@@ -131,12 +154,12 @@ class Currency implements CurrencyInterface
             $file_content = json_decode($file_content, true);
             if (($file_content === NULL) || !is_array($file_content)) throw new Exception("Currency data can't be parsed", 2);
 
-            if (!array_key_exists('data', $file_content)) throw new Exception("Currency file does not contain DATA section", 3);
+            if (!array_key_exists('summary', $file_content)) throw new Exception("Currency file does not contain DATA section", 3);
 
             // добиваем валюту до $MAX_CURRENCY_STRING_LENGTH нулями (то есть 55.4 (4 десятых) добивается до 55.40 (40 копеек)
-            foreach ($file_content['data'] as $currency_code => $currency_data) {
-                // $current_currency[$currency_code] = str_pad($currency_data, self::$MAX_CURRENCY_STRING_LENGTH, '0');
-                $current_currency[ $currency_code ] = sprintf("%01.2f", $currency_data); //@todo: TEST
+            foreach ($file_content['summary'] as $currency_code => $currency_data) {
+                // $current_currency[ $currency_code ] = str_pad($currency_data, self::$options['max_currency_string_length'], '0');
+                $current_currency[ $currency_code ] = sprintf(self::$options['out_format'], $currency_data);
             }
 
         } catch (Exception $e) {
@@ -188,3 +211,5 @@ class Currency implements CurrencyInterface
         }
     }
 }
+
+# -eof-
