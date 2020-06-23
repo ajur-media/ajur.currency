@@ -1,0 +1,21 @@
+{
+    "name": "karelwintersky/ajur.currency",
+    "description": "AJUR Media Steamboat Currency Toolkit",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Karel Wintersky",
+            "email": "vim@fontanka.ru"
+        }
+    ],
+    "require": {
+        "curl/curl": "^2.3",
+        "psr/log": "^1.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "AJUR\\Toolkit\\": [ "interfaces", "sources" ]
+        }
+    }
+}
