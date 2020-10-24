@@ -62,5 +62,5 @@ interface CurrencyInterface
      * @param LoggerInterface|null $logger
      * @return array
      */
-    public static function loadFile(string $filename, LoggerInterface $logger = null):array;
+    public static function loadFile(string $filename):array;
 }

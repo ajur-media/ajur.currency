@@ -7,6 +7,7 @@ use DateTime;
 use Exception;
 use NumberFormatter;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 class Currency implements CurrencyInterface
 {
@@ -39,7 +40,11 @@ class Currency implements CurrencyInterface
      * @var array Полный набор данных
      */
     public static $cbr_response_raw_data;
-
+    /**
+     * @var NullLogger|LoggerInterface|null
+     */
+    private static $logger;
+    
     /**
      * @param array $options
      * @param LoggerInterface|null $logger
@@ -56,6 +61,11 @@ class Currency implements CurrencyInterface
             = array_key_exists('out_format', $options)
             ? $options['out_format']
             : "%01.2f";
+    
+        self::$logger
+            = $logger instanceof LoggerInterface
+            ? $logger
+            : new NullLogger();
     }
 
     /**
@@ -73,8 +83,10 @@ class Currency implements CurrencyInterface
 
         $daily = self::loadCurrencyDataset($fetch_date);
 
-        if (!$daily || !array_key_exists('Valute', $daily))
+        if (!$daily || !array_key_exists('Valute', $daily)) {
+            // self::$logger->error("[ERROR] CBR API returns empty data", [ $daily ]);
             throw new Exception("[ERROR] CBR API returns empty data");
+        }
 
         $cbr_prices_full = array_filter($daily['Valute'], function ($price) use (&$cbr_prices, &$cbr_prices_compact, $codes) {
             if (empty($codes) || in_array($price['CharCode'], $codes)) {
@@ -143,7 +155,7 @@ class Currency implements CurrencyInterface
      * @param LoggerInterface|null $logger
      * @return array
      */
-    public static function loadFile(string $filename, LoggerInterface $logger = null): array
+    public static function loadFile(string $filename): array
     {
         $current_currency = [];
 
@@ -163,7 +175,7 @@ class Currency implements CurrencyInterface
             }
 
         } catch (Exception $e) {
-            if (!is_null($logger)) $logger->error('[ERROR] Load Currency ', [$e->getMessage()]);
+            self::$logger->error('[ERROR] Load Currency ', [$e->getMessage()]);
         }
 
         return $current_currency;
