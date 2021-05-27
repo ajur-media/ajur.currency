@@ -8,6 +8,7 @@ use Exception;
 use NumberFormatter;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use RuntimeException;
 
 class Currency implements CurrencyInterface
 {
@@ -76,7 +77,7 @@ class Currency implements CurrencyInterface
      * @return bool
      * @throws Exception
      */
-    public static function selectCurrencySet(array $codes, $fetch_date = null)
+    public static function selectCurrencySet(array $codes, $fetch_date = null):bool
     {
         $cbr_prices = [];
         $cbr_prices_compact = [];
@@ -114,9 +115,9 @@ class Currency implements CurrencyInterface
     /**
      * Возвращает информацию о загруженных валютах
      *
-     * @return mixed
+     * @return array
      */
-    public static function getPrices()
+    public static function getPrices():array
     {
         return self::$cbr_prices;
     }
@@ -126,7 +127,7 @@ class Currency implements CurrencyInterface
      *
      * @return mixed
      */
-    public static function getPricesCompact()
+    public static function getPricesCompact():array
     {
         return self::$cbr_prices_compact;
     }
@@ -160,13 +161,23 @@ class Currency implements CurrencyInterface
         $current_currency = [];
 
         try {
+            if (empty($filename)) {
+                throw new RuntimeException( "Currency file not defined (null or empty string given)", 4 );
+            }
+            
             $file_content = file_get_contents($filename);
-            if ($file_content === FALSE) throw new Exception("Currency file `{$filename}` not found", 1);
+            if ($file_content === FALSE) {
+                throw new RuntimeException( "Currency file `{$filename}` not found", 1 );
+            }
 
             $file_content = json_decode($file_content, true);
-            if (($file_content === NULL) || !is_array($file_content)) throw new Exception("Currency data can't be parsed", 2);
+            if (($file_content === NULL) || !is_array($file_content)) {
+                throw new RuntimeException( "Currency data can't be parsed", 2 );
+            }
 
-            if (!array_key_exists('summary', $file_content)) throw new Exception("Currency file does not contain DATA section", 3);
+            if (!array_key_exists('summary', $file_content)) {
+                throw new RuntimeException( "Currency file does not contain DATA section", 3 );
+            }
 
             // добиваем валюту до $MAX_CURRENCY_STRING_LENGTH нулями (то есть 55.4 (4 десятых) добивается до 55.40 (40 копеек)
             foreach ($file_content['summary'] as $currency_code => $currency_data) {
@@ -174,7 +185,7 @@ class Currency implements CurrencyInterface
                 $current_currency[ $currency_code ] = sprintf(self::$options['out_format'], $currency_data);
             }
 
-        } catch (Exception $e) {
+        } catch (RuntimeException $e) {
             self::$logger->error('[ERROR] Load Currency ', [$e->getMessage()]);
         }
 
@@ -216,11 +227,11 @@ class Currency implements CurrencyInterface
      */
     private static function formatCurrencyValue($value)
     {
-        if (version_compare(PHP_VERSION, "7.4", '>=')) {
+        if (PHP_VERSION_ID >= 70400) {
             return numfmt_format_currency(numfmt_create( 'ru_RU', NumberFormatter::CURRENCY ), $value, "RUR");
-        } else {
-            return money_format('%i', str_replace(',', '.', $value));
         }
+    
+        return money_format('%i', str_replace(',', '.', $value));
     }
 }
 

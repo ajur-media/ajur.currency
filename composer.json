@@ -3,6 +3,7 @@
   "description": "AJUR Media Steamboat Currency Toolkit",
   "type": "library",
   "license": "MIT",
+  "version": "1.2.0",
   "authors": [
     {
       "name": "Karel Wintersky",

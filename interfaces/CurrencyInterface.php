@@ -31,29 +31,29 @@ interface CurrencyInterface
      * @param array $codes
      * @return bool
      */
-    public static function selectCurrencySet(array $codes);
+    public static function selectCurrencySet(array $codes):bool ;
 
     /**
      * Возвращает информацию о загруженных валютах
      *
      * @return array
      */
-    public static function getPrices();
+    public static function getPrices():array ;
 
     /**
      * Возвращает информацию о загруженных валютах в компактном виде
      *
      * @return array
      */
-    public static function getPricesCompact();
+    public static function getPricesCompact():array;
 
     /**
      * Сохраняет данные в файл
      *
      * @param string $filename
-     * @return array
+     * @return mixed
      */
-    public static function storeFile(string $filename);
+    public static function storeFile(string $filename) ;
 
     /**
      * Загружает данные из файла
