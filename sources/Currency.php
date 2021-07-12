@@ -4,11 +4,10 @@ namespace AJUR\Toolkit;
 
 use Curl\Curl;
 use DateTime;
-use Exception;
+use RuntimeException;
 use NumberFormatter;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use RuntimeException;
 
 class Currency implements CurrencyInterface
 {
@@ -20,6 +19,7 @@ class Currency implements CurrencyInterface
      */
     private static $options = [
         'out_format'                    =>  "%01.2f",
+        'format_method'                 =>  'legacy',
     ];
 
     /**
@@ -62,6 +62,14 @@ class Currency implements CurrencyInterface
             = array_key_exists('out_format', $options)
             ? $options['out_format']
             : "%01.2f";
+        
+        self::$options['format_method']
+            = array_key_exists('format_method', $options)
+            ? $options['format_method']
+            : 'legacy';
+        if (!in_array(self::$options['format_method'], ['legacy', 'numfmt'])) {
+            self::$options['format_method'] = 'legacy';
+        }
     
         self::$logger
             = $logger instanceof LoggerInterface
@@ -75,9 +83,8 @@ class Currency implements CurrencyInterface
      * @param array $codes
      * @param null $fetch_date
      * @return bool
-     * @throws Exception
      */
-    public static function selectCurrencySet(array $codes, $fetch_date = null):bool
+    public static function selectCurrencySet(array $codes = [], $fetch_date = null):bool
     {
         $cbr_prices = [];
         $cbr_prices_compact = [];
@@ -85,8 +92,7 @@ class Currency implements CurrencyInterface
         $daily = self::loadCurrencyDataset($fetch_date);
 
         if (!$daily || !array_key_exists('Valute', $daily)) {
-            // self::$logger->error("[ERROR] CBR API returns empty data", [ $daily ]);
-            throw new Exception("[ERROR] CBR API returns empty data");
+            throw new RuntimeException("[ERROR] CBR API returns empty data");
         }
 
         $cbr_prices_full = array_filter($daily['Valute'], function ($price) use (&$cbr_prices, &$cbr_prices_compact, $codes) {
@@ -166,12 +172,12 @@ class Currency implements CurrencyInterface
             }
             
             $file_content = file_get_contents($filename);
-            if ($file_content === FALSE) {
+            if ($file_content === false) {
                 throw new RuntimeException( "Currency file `{$filename}` not found", 1 );
             }
 
             $file_content = json_decode($file_content, true);
-            if (($file_content === NULL) || !is_array($file_content)) {
+            if (($file_content === null) || !is_array($file_content)) {
                 throw new RuntimeException( "Currency data can't be parsed", 2 );
             }
 
@@ -195,7 +201,6 @@ class Currency implements CurrencyInterface
     /**
      * @param $fetch_date
      * @return mixed
-     * @throws Exception
      */
     private static function loadCurrencyDataset($fetch_date)
     {
@@ -212,7 +217,7 @@ class Currency implements CurrencyInterface
         ]);
 
         if ($curl->error)
-            throw new Exception("[CURL] Error", $curl->error_code);
+            throw new RuntimeException("[CURL] Error", $curl->error_code);
 
         $xml = simplexml_load_string($curl->response);
         $json = json_encode( $xml );
@@ -227,7 +232,7 @@ class Currency implements CurrencyInterface
      */
     private static function formatCurrencyValue($value)
     {
-        if (PHP_VERSION_ID >= 70400) {
+        if (PHP_VERSION_ID >= 70400 && self::$options['format_method'] === 'numfmt') {
             return numfmt_format_currency(numfmt_create( 'ru_RU', NumberFormatter::CURRENCY ), $value, "RUR");
         }
     
