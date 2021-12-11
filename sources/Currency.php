@@ -44,7 +44,7 @@ class Currency implements CurrencyInterface
     /**
      * @var NullLogger|LoggerInterface|null
      */
-    private static $logger;
+    private static $logger = null;
     
     /**
      * @param array $options
@@ -159,7 +159,6 @@ class Currency implements CurrencyInterface
      * Загружает данные из файла
      *
      * @param string $filename
-     * @param LoggerInterface|null $logger
      * @return array
      */
     public static function loadFile(string $filename): array
@@ -171,13 +170,21 @@ class Currency implements CurrencyInterface
                 throw new RuntimeException( "Currency file not defined (null or empty string given)", 4 );
             }
             
+            if (!file_exists($filename)) {
+                throw new RuntimeException("Currency file `{$filename}` not found", 1);
+            }
+            
+            if (!is_readable($filename)) {
+                throw new RuntimeException("Currency file `{$filename}` not readable", 1);
+            }
+            
             $file_content = file_get_contents($filename);
             if ($file_content === false) {
-                throw new RuntimeException( "Currency file `{$filename}` not found", 1 );
+                throw new RuntimeException( "Currency file `{$filename}` can't be retrieved", 1 );
             }
 
             $file_content = json_decode($file_content, true);
-            if (($file_content === null) || !is_array($file_content)) {
+            if (!is_array($file_content)) {
                 throw new RuntimeException( "Currency data can't be parsed", 2 );
             }
 
@@ -187,12 +194,14 @@ class Currency implements CurrencyInterface
 
             // добиваем валюту до $MAX_CURRENCY_STRING_LENGTH нулями (то есть 55.4 (4 десятых) добивается до 55.40 (40 копеек)
             foreach ($file_content['summary'] as $currency_code => $currency_data) {
-                // $current_currency[ $currency_code ] = str_pad($currency_data, self::$options['max_currency_string_length'], '0');
                 $current_currency[ $currency_code ] = sprintf(self::$options['out_format'], $currency_data);
             }
 
         } catch (RuntimeException $e) {
-            self::$logger->error('[ERROR] Load Currency ', [$e->getMessage()]);
+            if (self::$logger instanceof LoggerInterface) {
+                self::$logger->error('[ERROR] Load Currency ', [$e->getMessage()]);
+            }
+            
         }
 
         return $current_currency;
@@ -232,7 +241,7 @@ class Currency implements CurrencyInterface
      */
     private static function formatCurrencyValue($value)
     {
-        if (PHP_VERSION_ID >= 70400 && self::$options['format_method'] === 'numfmt') {
+        if (function_exists('numfmt_format_currency') && function_exists('numfmt_create')) {
             return numfmt_format_currency(numfmt_create( 'ru_RU', NumberFormatter::CURRENCY ), $value, "RUR");
         }
     
