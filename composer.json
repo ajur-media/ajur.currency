@@ -10,12 +10,13 @@
     }
   ],
   "require": {
+    "php": "^7.4 | 8.*",
     "ext-curl": "*",
     "ext-json": "*",
     "ext-intl": "*",
     "ext-simplexml": "*",
     "psr/log": "^1.1",
-    "curl/curl": "^2.3"
+    "curl/curl": "^2"
   },
   "autoload": {
     "psr-4": {
@@ -28,5 +29,8 @@
   "support": {
     "source": "https://github.com/ajur-media/ajur.currency",
     "issues": "https://github.com/ajur-media/ajur.currency/issues"
+  },
+  "require-dev": {
+    "rector/rector": "^1.2"
   }
 }

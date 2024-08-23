@@ -6,6 +6,9 @@ use Psr\Log\LoggerInterface;
 
 interface CurrencyInterface
 {
+    /**
+     *
+     */
     const CBR_URL = 'http://www.cbr.ru/scripts/XML_daily.asp';
 
     const credentials = [
@@ -23,7 +26,7 @@ interface CurrencyInterface
      * @param LoggerInterface|null $logger
      * @return mixed
      */
-    public static function init($options = [], LoggerInterface $logger = null);
+    public static function init(array $options = [], LoggerInterface $logger = null);
 
     /**
      * Фильтрует набор данных из ЦБР на предмет валют по набору кодов
@@ -59,7 +62,6 @@ interface CurrencyInterface
      * Загружает данные из файла
      *
      * @param string $filename
-     * @param LoggerInterface|null $logger
      * @return array
      */
     public static function loadFile(string $filename):array;

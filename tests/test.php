@@ -2,7 +2,7 @@
 
 use AJUR\Toolkit\Currency;
 
-require_once '../vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 try {
     Currency::init([

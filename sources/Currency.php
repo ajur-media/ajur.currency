@@ -5,7 +5,6 @@ namespace AJUR\Toolkit;
 use Curl\Curl;
 use DateTime;
 use RuntimeException;
-use NumberFormatter;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -45,24 +44,25 @@ class Currency implements CurrencyInterface
      * @var NullLogger|LoggerInterface|null
      */
     private static $logger = null;
-    
+
     /**
      * @param array $options
      * @param LoggerInterface|null $logger
      */
-    public static function init($options = [], LoggerInterface $logger = null)
+    public static function init(array $options = [], LoggerInterface $logger = null)
     {
         self::$options['locale']
             = array_key_exists('locale', $options)
             ? $options['locale']
             : 'ru_RU';
+
         setlocale(LC_MONETARY, self::$options['locale']);
 
         self::$options['out_format']
             = array_key_exists('out_format', $options)
             ? $options['out_format']
             : "%01.2f";
-        
+
         self::$options['format_method']
             = array_key_exists('format_method', $options)
             ? $options['format_method']
@@ -70,7 +70,7 @@ class Currency implements CurrencyInterface
         if (!in_array(self::$options['format_method'], ['legacy', 'numfmt'])) {
             self::$options['format_method'] = 'legacy';
         }
-    
+
         self::$logger
             = $logger instanceof LoggerInterface
             ? $logger
@@ -169,15 +169,15 @@ class Currency implements CurrencyInterface
             if (empty($filename)) {
                 throw new RuntimeException( "Currency file not defined (null or empty string given)", 4 );
             }
-            
+
             if (!file_exists($filename)) {
                 throw new RuntimeException("Currency file `{$filename}` not found", 1);
             }
-            
+
             if (!is_readable($filename)) {
                 throw new RuntimeException("Currency file `{$filename}` not readable", 1);
             }
-            
+
             $file_content = file_get_contents($filename);
             if ($file_content === false) {
                 throw new RuntimeException( "Currency file `{$filename}` can't be retrieved", 1 );
@@ -201,7 +201,7 @@ class Currency implements CurrencyInterface
             if (self::$logger instanceof LoggerInterface) {
                 self::$logger->error('[ERROR] Load Currency ', [$e->getMessage()]);
             }
-            
+
         }
 
         return $current_currency;
@@ -213,7 +213,7 @@ class Currency implements CurrencyInterface
      */
     private static function loadCurrencyDataset($fetch_date)
     {
-        $fetch_date = $fetch_date ?? (new DateTime())->format('d/m/Y');
+        $fetch_date ??= (new DateTime())->format('d/m/Y');
         $url = self::CBR_URL;
 
         $curl = new Curl();
@@ -239,12 +239,12 @@ class Currency implements CurrencyInterface
      * @param $value
      * @return string
      */
-    private static function formatCurrencyValue($value)
+    private static function formatCurrencyValue($value): string
     {
         // return money_format('%i', str_replace(',', '.', $value));
         return number_format(str_replace(',', '.', $value), 2, '.', '');
     }
-    
+
     /**
      * Форматирует деньги с учетом параметров локали.
      * Это НЕ числовое форматирование
@@ -255,8 +255,7 @@ class Currency implements CurrencyInterface
      */
     public static function money_format_with_locale($format, $number)
     {
-        $regex  = '/%((?:[\^!\-]|\+|\(|\=.)*)([0-9]+)?'.
-            '(?:#([0-9]+))?(?:\.([0-9]+))?([in%])/';
+        $regex  = '/%((?:[\^!\-]|\+|\(|\=.)*)([0-9]+)?(?:#([0-9]+))?(?:\.([0-9]+))?([in%])/';
         if (setlocale(LC_MONETARY, 0) == 'C') {
             setlocale(LC_MONETARY, '');
         }
@@ -275,16 +274,16 @@ class Currency implements CurrencyInterface
             $left       = trim($fmatch[3]) ? (int)$fmatch[3] : 0;
             $right      = trim($fmatch[4]) === '' ? $locale['int_frac_digits'] : (int)$fmatch[4];
             $conversion = $fmatch[5];
-            
+
             $positive = true;
             if ($value < 0) {
                 $positive = false;
                 $value  *= -1;
             }
             $letter = $positive ? 'p' : 'n';
-            
+
             $prefix = $suffix = $cprefix = $csuffix = $signal = '';
-            
+
             $signal = $positive ? $locale['positive_sign'] : $locale['negative_sign'];
             switch (true) {
                 case $locale["{$letter}_sign_posn"] == 1 && $flags['usesignal'] == '+':
@@ -311,7 +310,7 @@ class Currency implements CurrencyInterface
                 $currency = '';
             }
             $space  = $locale["{$letter}_sep_by_space"] ? ' ' : '';
-            
+
             $value = number_format(
                 $value,
                 $right,
@@ -319,7 +318,7 @@ class Currency implements CurrencyInterface
                 $flags['nogroup'] ? '' : $locale['mon_thousands_sep']
             );
             $value = @explode($locale['mon_decimal_point'], $value);
-            
+
             $n = strlen($prefix) + strlen($currency) + strlen($value[0]);
             if ($left > 0 && $left > $n) {
                 $value[0] = str_repeat($flags['fillchar'], $left - $n) . $value[0];
@@ -338,7 +337,7 @@ class Currency implements CurrencyInterface
                     $flags['isleft'] ? STR_PAD_RIGHT : STR_PAD_LEFT
                 );
             }
-            
+
             $format = str_replace($fmatch[0], $value, $format);
         }
         return $format;
