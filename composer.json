@@ -10,18 +10,17 @@
     }
   ],
   "require": {
-    "php": "^7.4 | 8.*",
+    "php": "^8.2",
     "ext-curl": "*",
     "ext-json": "*",
     "ext-intl": "*",
     "ext-simplexml": "*",
-    "psr/log": "^1.1",
+    "psr/log": "*",
     "curl/curl": "^2"
   },
   "autoload": {
     "psr-4": {
       "AJUR\\Toolkit\\": [
-        "interfaces",
         "sources"
       ]
     }

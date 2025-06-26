@@ -54,9 +54,9 @@ interface CurrencyInterface
      * Сохраняет данные в файл
      *
      * @param string $filename
-     * @return mixed
+     * @return int
      */
-    public static function storeFile(string $filename) ;
+    public static function storeFile(string $filename): int;
 
     /**
      * Загружает данные из файла

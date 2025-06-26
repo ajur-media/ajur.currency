@@ -4,9 +4,9 @@ namespace AJUR\Toolkit;
 
 use Curl\Curl;
 use DateTime;
-use RuntimeException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use RuntimeException;
 
 class Currency implements CurrencyInterface
 {
@@ -16,20 +16,21 @@ class Currency implements CurrencyInterface
      * - max_currency_string_length - максимальная длина строки с записью валюты (5)
      * ]
      */
-    private static $options = [
+    private static array $options = [
         'out_format'                    =>  "%01.2f",
         'format_method'                 =>  'legacy',
+        'locale'                        =>  'ru_RU'
     ];
 
     /**
      * @var array Список валют, общий вид
      */
-    private static $cbr_prices = [];
+    private static array $cbr_prices = [];
 
     /**
      * @var array Список валют, компактный вид
      */
-    private static $cbr_prices_compact = [];
+    private static array $cbr_prices_compact = [];
 
     /**
      * @var array Отладочный набор данных
@@ -39,11 +40,12 @@ class Currency implements CurrencyInterface
     /**
      * @var array Полный набор данных
      */
-    public static $cbr_response_raw_data;
+    public static array $cbr_response_raw_data;
+
     /**
-     * @var NullLogger|LoggerInterface|null
+     * @var LoggerInterface
      */
-    private static $logger = null;
+    private static LoggerInterface $logger;
 
     /**
      * @param array $options
@@ -51,7 +53,7 @@ class Currency implements CurrencyInterface
      */
     public static function init(array $options = [], LoggerInterface $logger = null)
     {
-        self::$options['locale']
+        /*self::$options['locale']
             = array_key_exists('locale', $options)
             ? $options['locale']
             : 'ru_RU';
@@ -66,15 +68,25 @@ class Currency implements CurrencyInterface
         self::$options['format_method']
             = array_key_exists('format_method', $options)
             ? $options['format_method']
-            : 'legacy';
+            : 'legacy';*/
+
+        self::$options = [
+            ...self::$options,
+            ...$options
+        ];
+
         if (!in_array(self::$options['format_method'], ['legacy', 'numfmt'])) {
             self::$options['format_method'] = 'legacy';
         }
 
-        self::$logger
+        setlocale(LC_MONETARY, self::$options['locale']);
+
+        /*self::$logger
             = $logger instanceof LoggerInterface
             ? $logger
-            : new NullLogger();
+            : new NullLogger();*/
+
+        self::$logger = $logger ?? new NullLogger();
     }
 
     /**
@@ -86,14 +98,14 @@ class Currency implements CurrencyInterface
      */
     public static function selectCurrencySet(array $codes = [], $fetch_date = null):bool
     {
-        $cbr_prices = [];
-        $cbr_prices_compact = [];
-
         $daily = self::loadCurrencyDataset($fetch_date);
 
         if (!$daily || !array_key_exists('Valute', $daily)) {
             throw new RuntimeException("[ERROR] CBR API returns empty data");
         }
+
+        $cbr_prices = [];
+        $cbr_prices_compact = [];
 
         $cbr_prices_full = array_filter($daily['Valute'], function ($price) use (&$cbr_prices, &$cbr_prices_compact, $codes) {
             if (empty($codes) || in_array($price['CharCode'], $codes)) {
@@ -142,9 +154,9 @@ class Currency implements CurrencyInterface
      * Сохраняет данные в файл
      *
      * @param string $filename
-     * @return mixed
+     * @return int
      */
-    public static function storeFile(string $filename)
+    public static function storeFile(string $filename): int
     {
         $asset = [
             'update_ts'     =>  time(),
@@ -152,7 +164,13 @@ class Currency implements CurrencyInterface
             'summary'       =>  self::getPricesCompact(),
             'data'          =>  self::getPrices()
         ];
-        return file_put_contents($filename, json_encode($asset, JSON_PRETTY_PRINT | JSON_PRESERVE_ZERO_FRACTION | JSON_UNESCAPED_UNICODE), LOCK_EX);
+        $written_bytes = file_put_contents(
+            $filename,
+            json_encode($asset, JSON_PRETTY_PRINT | JSON_PRESERVE_ZERO_FRACTION | JSON_UNESCAPED_UNICODE),
+            LOCK_EX
+        );
+        // return $written_bytes === false ? -1 : $written_bytes;
+        return $written_bytes ?: -1;
     }
 
     /**
@@ -211,7 +229,7 @@ class Currency implements CurrencyInterface
      * @param $fetch_date
      * @return mixed
      */
-    private static function loadCurrencyDataset($fetch_date)
+    private static function loadCurrencyDataset($fetch_date): mixed
     {
         $fetch_date ??= (new DateTime())->format('d/m/Y');
         $url = self::CBR_URL;
@@ -221,12 +239,11 @@ class Currency implements CurrencyInterface
         $curl->setOpt(CURLOPT_RETURNTRANSFER, true);
         $curl->setOpt(CURLOPT_FOLLOWLOCATION, false);
         $curl->setOpt(CURLOPT_MAXREDIRS,10);
-        $curl->get($url, [
-            'date_req'  =>  $fetch_date
-        ]);
+        $curl->get($url, ['date_req'  =>  $fetch_date]);
 
-        if ($curl->error)
+        if ($curl->error) {
             throw new RuntimeException("[CURL] Error", $curl->error_code);
+        }
 
         $xml = simplexml_load_string($curl->response);
         $json = json_encode( $xml );
@@ -241,8 +258,16 @@ class Currency implements CurrencyInterface
      */
     private static function formatCurrencyValue($value): string
     {
-        // return money_format('%i', str_replace(',', '.', $value));
-        return number_format(str_replace(',', '.', $value), 2, '.', '');
+        return number_format(
+            str_replace(
+                ',',
+                '.',
+                $value
+            ),
+            2,
+            '.',
+            ''
+        );
     }
 
     /**
@@ -253,25 +278,25 @@ class Currency implements CurrencyInterface
      * @param $number
      * @return array|mixed|string|string[]
      */
-    public static function money_format_with_locale($format, $number)
+    public static function money_format_with_locale($format, $number): mixed
     {
         $regex  = '/%((?:[\^!\-]|\+|\(|\=.)*)([0-9]+)?(?:#([0-9]+))?(?:\.([0-9]+))?([in%])/';
         if (setlocale(LC_MONETARY, 0) == 'C') {
             setlocale(LC_MONETARY, '');
         }
         $locale = localeconv();
-        preg_match_all($regex, $format, $matches, PREG_SET_ORDER);
+        preg_match_all($regex, (string) $format, $matches, PREG_SET_ORDER);
         foreach ($matches as $fmatch) {
             $value = (float)$number;
             $flags = [
                 'fillchar'  => preg_match('/\=(.)/', $fmatch[1], $match) ? $match[1] : ' ',
-                'nogroup'   => preg_match('/\^/', $fmatch[1]) > 0,
+                'nogroup'   => str_contains($fmatch[1], '^'),
                 'usesignal' => preg_match('/\+|\(/', $fmatch[1], $match) ? $match[0] : '+',
-                'nosimbol'  => preg_match('/\!/', $fmatch[1]) > 0,
-                'isleft'    => preg_match('/\-/', $fmatch[1]) > 0
+                'nosimbol'  => str_contains($fmatch[1], '!'),
+                'isleft'    => str_contains($fmatch[1], '-')
             ];
-            $width      = trim($fmatch[2]) ? (int)$fmatch[2] : 0;
-            $left       = trim($fmatch[3]) ? (int)$fmatch[3] : 0;
+            $width = (int)($fmatch[2] ?? 0);
+            $left = (int)($fmatch[3] ?? 0);
             $right      = trim($fmatch[4]) === '' ? $locale['int_frac_digits'] : (int)$fmatch[4];
             $conversion = $fmatch[5];
 
@@ -319,7 +344,7 @@ class Currency implements CurrencyInterface
             );
             $value = @explode($locale['mon_decimal_point'], $value);
 
-            $n = strlen($prefix) + strlen($currency) + strlen($value[0]);
+            $n = strlen((string) $prefix) + strlen($currency) + strlen($value[0]);
             if ($left > 0 && $left > $n) {
                 $value[0] = str_repeat($flags['fillchar'], $left - $n) . $value[0];
             }
@@ -344,4 +369,4 @@ class Currency implements CurrencyInterface
     }
 }
 
-# -eof-
+# -eof- #

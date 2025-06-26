@@ -6,3 +6,6 @@
 .gitignore          export-ignore
 tests               export-ignore
 vendor              export-ignore
+rector.php          export-ignore
+makefile            export-ignore
+
